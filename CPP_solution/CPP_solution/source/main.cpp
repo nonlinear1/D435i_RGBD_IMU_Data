@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <librealsense2/rs.hpp>	//realsense 2.0 sdk lib
-#include "imu_odometry.h"
 
 using namespace rs2;
-#define t_max 60	//times of operation
+
+#define t_max 60	//Maximum steps of running
 
 void D435iOperate(pipeline *pipe);
 
@@ -14,46 +14,10 @@ int main(int argc, char* argv[])
 	/*
 	cfg.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_RGB8, 30);
 	cfg.enable_stream(RS2_STREAM_DEPTH, 1280, 720, RS2_FORMAT_Z16, 30);
-	cfg.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F);
-	cfg.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F);
+	cfg.enable_stream(RS2_STREAM_POSE);
 	*/
 	cfg.enable_device_from_file("H:\\Downloads\\d435i_sample\\d435i_walk_around.bag");	//offline data pack
-	imu_odometry imu_odo;
-	double gyro_array[3];
-	double accel_array[3];
 	pipe.start(cfg);
-	/*
-	pipe.start(cfg, [&](rs2::frame fra)
-	{
-		// Cast the frame that arrived to motion frame
-		motion_frame motion = fra.as<rs2::motion_frame>();
-		// If casting succeeded and the arrived frame is from gyro stream
-		if (motion && motion.get_profile().stream_type() == RS2_STREAM_GYRO && motion.get_profile().format() == RS2_FORMAT_MOTION_XYZ32F)
-		{
-			// Get the timestamp of the current frame
-			double ts = motion.get_timestamp();
-			// Get gyro measures
-			rs2_vector gyro_data = motion.get_motion_data();
-			gyro_array[0] = gyro_data.x;
-			gyro_array[1] = gyro_data.y;
-			gyro_array[2] = gyro_data.z;
-			imu_odo.process_gyro(gyro_array, ts);
-		}
-		// If casting succeeded and the arrived frame is from accelerometer stream
-		if (motion && motion.get_profile().stream_type() == RS2_STREAM_ACCEL && motion.get_profile().format() == RS2_FORMAT_MOTION_XYZ32F)
-		{
-			// Get the timestamp of the current frame
-			double ts = motion.get_timestamp();
-			// Get accelerometer measures
-			rs2_vector accel_data = motion.get_motion_data();
-			accel_array[0] = accel_data.x;
-			accel_array[1] = accel_data.y;
-			accel_array[2] = accel_data.z;
-			imu_odo.process_accel(accel_array, ts);
-		}
-	});
-	*/
-
 	// Capture 30 frames to give autoexposure, etc. a chance to settle
 	for (int i = 0; i < 30; ++i) pipe.wait_for_frames();
 
@@ -79,17 +43,45 @@ void D435iOperate(pipeline *pipe)
 		frameset frames = pipe->wait_for_frames();
 		depth_frame depth = frames.get_depth_frame();
 		depth_frame color = frames.get_color_frame();
+
 		/*
 		pc.map_to(color);
 		points = pc.calculate(depth);
 		point_3d_co = points.get_vertices();	//3d coordinates (x,y,z) of pointcloud
 		point_text_co = points.get_texture_coordinates();	//the texture coordinates of (u,v) of pointcloud
 		*/
+
+		//Read acceleration data
+		if (rs2::motion_frame accel_frame = frames.first_or_default(RS2_STREAM_ACCEL))
+		{
+			rs2_vector accel_sample = accel_frame.get_motion_data();
+			printf("accel: (%.3f,%.3f,%.3f)\n", accel_sample.x, accel_sample.y, accel_sample.z);
+		}
+		//Read gyro data
+		if (rs2::motion_frame gyro_frame = frames.first_or_default(RS2_STREAM_GYRO))
+		{
+			rs2_vector gyro_sample = gyro_frame.get_motion_data();
+			printf("gyrp: (%.3f,%.3f,%.3f)\n", gyro_sample.x, gyro_sample.y, gyro_sample.z);
+		}
+		//Read pose tracing data produced by D435i
+		if (rs2::pose_frame pose_frame = frames.first_or_default(RS2_STREAM_POSE))
+		{
+			rs2_pose pose_sample = pose_frame.get_pose_data();
+			printf("tran: (%.3f,%.3f,%.3f)\n", pose_sample.translation.x, pose_sample.translation.y, pose_sample.translation.z);
+			printf("tran_v: (%.3f,%.3f,%.3f)\n", pose_sample.velocity.x, pose_sample.velocity.y, pose_sample.velocity.z);
+			printf("tran_a: (%.3f,%.3f,%.3f)\n", pose_sample.acceleration.x, pose_sample.acceleration.y, pose_sample.acceleration.z);
+			printf("ang: (%.3f,%.3f,%.3f,%.3f)\n", pose_sample.rotation.x, pose_sample.rotation.y, pose_sample.rotation.z, pose_sample.rotation.w);
+			printf("ang_v: (%.3f,%.3f,%.3f)\n", pose_sample.angular_velocity.x, pose_sample.angular_velocity.y, pose_sample.angular_velocity.z);
+			printf("ang_a: (%.3f,%.3f,%.3f)\n", pose_sample.angular_acceleration.x, pose_sample.angular_acceleration.y, pose_sample.angular_acceleration.z);
+			printf("tracker_conf: (%d)\n", pose_sample.tracker_confidence);
+			printf("mapper_conf: (%d)\n", pose_sample.mapper_confidence);
+		}
+		//Measure the distance of centre of the image
 		if (depth)
 		{
 			int width = depth.get_width();
 			int height = depth.get_height();
-			float dist_to_center = depth.get_distance(width / 2.0, height / 2.0);
+			float dist_to_center = depth.get_distance(width / 2, height / 2);
 			printf("%.2f\n", dist_to_center);
 		}
 	}

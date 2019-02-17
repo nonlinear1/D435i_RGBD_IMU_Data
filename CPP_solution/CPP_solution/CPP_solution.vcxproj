@@ -124,11 +124,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="source\imu_odometry.cpp" />
     <ClCompile Include="source\main.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="source\imu_odometry.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
