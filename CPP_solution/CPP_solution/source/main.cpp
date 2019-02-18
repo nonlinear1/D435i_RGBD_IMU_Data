@@ -5,29 +5,31 @@ using namespace rs2;
 
 #define t_max 60	//Maximum steps of running
 
-void D435iOperate(pipeline *pipe);
+void D435i_Operate(pipeline *pipe);
 
 int main(int argc, char* argv[])
 {
 	config cfg;
 	pipeline pipe;
-	/*
+	
 	cfg.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_RGB8, 30);
 	cfg.enable_stream(RS2_STREAM_DEPTH, 1280, 720, RS2_FORMAT_Z16, 30);
+	cfg.enable_stream(RS2_STREAM_GYRO);
+	cfg.enable_stream(RS2_STREAM_ACCEL);
 	cfg.enable_stream(RS2_STREAM_POSE);
-	*/
-	cfg.enable_device_from_file("H:\\Downloads\\d435i_sample\\d435i_walk_around.bag");	//offline data pack
+	
+	//cfg.enable_device_from_file("H:\\Downloads\\d435i_sample\\d435i_walk_around.bag");	//offline data pack
 	pipe.start(cfg);
 	// Capture 30 frames to give autoexposure, etc. a chance to settle
 	for (int i = 0; i < 30; ++i) pipe.wait_for_frames();
 
-	D435iOperate(&pipe);
+	D435i_Operate(&pipe);
 
 	pipe.stop();
 	return EXIT_SUCCESS;
 }
 
-void D435iOperate(pipeline *pipe)
+void D435i_Operate(pipeline *pipe)
 {
 	
 	rs2::pointcloud pc;
